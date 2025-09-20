@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Yātra Lite — Adaptive Trip Planner (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .glass { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(10px); }
+    .btn { transition: transform .08s ease, box-shadow .2s ease, background-color .2s ease; }
+    .btn:active { transform: translateY(1px); }
+    .soft-shadow { box-shadow: 0 12px 34px rgba(0,0,0,.22); }
+    .badge { background: rgba(255,255,255,.14); }
+    .dot { width:10px; height:10px; border-radius:9999px; }
+    .progress { height: 10px; border-radius: 9999px; background: rgba(255,255,255,.18); overflow: hidden; }
+    .progress > span { display:block; height:100%; border-radius:9999px; }
+
+    /* Creative background blobs */
+    #creativeBg .blob{
+      position:absolute; width:38vmax; height:38vmax; border-radius:50%;
+      background: radial-gradient(closest-side, rgba(255,255,255,.18), rgba(255,255,255,0));
+      filter: blur(10px);
+      animation: float 12s ease-in-out infinite;
+    }
+    @keyframes float{ 0%,100%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-20px) scale(1.05);} }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-900 via-violet-800 to-fuchsia-800 text-white overflow-x-hidden">
+  <!-- Demo banner -->
+  <div class="w-full text-center py-2 px-4 text-sm bg-black/30 border-b border-white/10">
+    <span class="font-semibold">Demo</span>: Mood, AI, and micro‑influencer features are simulated locally. No real APIs or bookings here.
+  </div>
+  
+  <!-- Creative background (shown in Creative Mode) -->
+  <div id="creativeBg" class="pointer-events-none fixed inset-0 opacity-0 transition-opacity duration-500">
+    <span class="blob" style="top:10%; left:5%;"></span>
+    <span class="blob" style="top:60%; left:10%; animation-delay: .6s;"></span>
+    <span class="blob" style="top:20%; right:8%; animation-delay: 1.2s;"></span>
+    <span class="blob" style="bottom:8%; right:12%; animation-delay: 1.8s;"></span>
+  </div>
+
+  <header class="max-w-7xl mx-auto px-6 md:px-10 pt-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Yātra Lite · Adaptive Trip Planner</h1>
+        <p class="text-white/80 mt-1">Simple, smart planning with Mood Catcher, hyperlocal immersion, and truly adaptive itineraries.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="glass rounded-xl px-2 py-1 flex items-center gap-2">
+          <span class="text-xs opacity-80">Creative Mode</span>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input id="creativeToggle" type="checkbox" class="sr-only peer">
+            <div class="w-11 h-6 bg-white/20 rounded-full peer peer-checked:bg-rose-400 transition-colors"></div>
+            <span class="dot absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
+          </label>
+        </div>
+        <button id="aboutBtn" class="btn glass rounded-xl px-4 py-2 text-sm hover:bg-white/20">About this demo</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 md:px-10 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left: Setup + Mood + Live -->
+      <section class="lg:col-span-4 space-y-6">
+        <div class="glass rounded-2xl p-5 soft-shadow">
+          <h2 class="text-xl font-bold mb-4">Trip setup</h2>
+          <form id="plannerForm" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm mb-1" for="city">City</label>
+                <select id="city" class="w-full glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400">
+                  <option value="goa">Goa</option>
+                  <option value="delhi">Delhi</option>
+                  <option value="jaipur">Jaipur</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="startDate">Start date</label>
+                <input id="startDate" type="date" class="w-full glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm mb-1" for="days">Days</label>
+                <input id="days" type="number" min="1" max="10" value="4" class="w-full glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="people">People</label>
+                <input id="people" type="number" min="1" max="8" value="2" class="w-full glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+              <div>
+                <label class="block text-sm mb-1" for="budget">Budget (₹)</label>
+                <input id="budget" type="number" min="5000" step="500" value="35000" class="w-full glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm">Themes</label>
+                <button id="themesClear" type="button" class="text-xs text-white/70 hover:text-white underline">Clear</button>
+              </div>
+              <div id="themesWrap" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="text-sm mb-2">Stay</div>
+                <div class="flex gap-2">
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="stay" value="economy" checked><span>Economy</span></label>
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="stay" value="comfort"><span>Comfort</span></label>
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="stay" value="premium"><span>Premium</span></label>
+                </div>
+              </div>
+              <div>
+                <div class="text-sm mb-2">Transport</div>
+                <div class="flex gap-2">
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="transport" value="cheapest" checked><span>Cheapest</span></label>
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="transport" value="balanced"><span>Balanced</span></label>
+                  <label class="glass rounded-xl px-3 py-2 cursor-pointer"><input class="hidden" type="radio" name="transport" value="fastest"><span>Fastest</span></label>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button id="generateBtn" class="btn bg-rose-500 hover:bg-rose-400 text-white rounded-xl px-5 py-2 font-semibold">Generate itinerary</button>
+              <button id="resetBtn" type="button" class="btn glass rounded-xl px-4 py-2 hover:bg-white/20">Reset</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Mood Catcher -->
+        <div class="glass rounded-2xl p-5 soft-shadow">
+          <h3 class="text-lg font-bold mb-2">Mood Catcher</h3>
+          <div class="text-sm text-white/80 mb-2">Tell us how you feel. We’ll adapt the pace and plan.</div>
+          <div id="emojiBar" class="flex flex-wrap gap-2 mb-2">
+            <button data-mood="energized" class="btn glass rounded-lg px-2 py-1">⚡</button>
+            <button data-mood="chill" class="btn glass rounded-lg px-2 py-1">😌</button>
+            <button data-mood="romance" class="btn glass rounded-lg px-2 py-1">💖</button>
+            <button data-mood="party" class="btn glass rounded-lg px-2 py-1">🎉</button>
+            <button data-mood="curious" class="btn glass rounded-lg px-2 py-1">🧠</button>
+            <button data-mood="tired" class="btn glass rounded-lg px-2 py-1">😴</button>
+          </div>
+          <div class="flex gap-2 mb-2">
+            <input id="moodText" class="flex-1 glass rounded-xl px-3 py-2 bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-400" placeholder="e.g., I feel a bit lazy but excited to explore food" />
+            <button id="catchMoodBtn" class="btn bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl px-3 py-2 font-semibold">Catch</button>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="glass rounded-xl p-3">
+              <div class="text-xs opacity-80">Energy</div>
+              <div class="progress mt-1"><span id="energyBar" class="bg-emerald-400 w-0"></span></div>
+              <div id="energyText" class="text-xs mt-1 opacity-80">–</div>
+            </div>
+            <div class="glass rounded-xl p-3">
+              <div class="text-xs opacity-80">Vibe</div>
+              <div id="vibeText" class="font-semibold mt-1">–</div>
+            </div>
+            <div class="glass rounded-xl p-3">
+              <div class="text-xs opacity-80">Focus</div>
+              <div id="focusText" class="font-semibold mt-1">–</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live signals -->
+        <div class="glass rounded-2xl p-5 soft-shadow">
+          <h3 class="text-lg font-bold mb-2">Live signals</h3>
+          <div class="flex items-center gap-3">
+            <div id="weatherIcon" class="text-2xl">☀️</div>
+            <div>
+              <div class="text-sm opacity-80">Weather</div>
+              <div id="weatherText" class="font-semibold">Clear & 30°C</div>
+            </div>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button id="toggleWeatherBtn" class="btn glass rounded-xl px-3 py-2 hover:bg-white/20">Toggle rain</button>
+            <button id="adaptBtn" class="btn bg-amber-400 hover:bg-amber-300 text-black rounded-xl px-3 py-2 font-semibold">Adapt itinerary</button>
+          </div>
+          <p class="text-xs text-white/70 mt-3">Rain replaces outdoor items with great indoor picks. Low energy eases the pace.</p>
+        </div>
+      </section>
+
+      <!-- Center: Itinerary + Costs -->
+      <section class="lg:col-span-5 space-y-6">
+        <div class="glass rounded-2xl p-5 soft-shadow relative overflow-hidden">
+          <div class="absolute inset-x-0 -top-6 h-12 opacity-30 bg-gradient-to-r from-rose-400/50 via-fuchsia-400/50 to-indigo-400/50 blur-2xl"></div>
+          <div class="flex items-center justify-between relative">
+            <h2 class="text-xl font-bold">Itinerary</h2>
+            <div class="flex items-center gap-2">
+              <span id="cityBadge" class="text-xs badge px-2 py-1 rounded-lg">–</span>
+              <span id="daysBadge" class="text-xs badge px-2 py-1 rounded-lg">–</span>
+              <span id="budgetBadge" class="text-xs badge px-2 py-1 rounded-lg">–</span>
+              <span id="moodBadge" class="text-xs badge px-2 py-1 rounded-lg">Mood: –</span>
+            </div>
+          </div>
+          <div id="itineraryEmpty" class="text-white/80 mt-4">Set your preferences and click “Generate itinerary”.</div>
+          <div id="itineraryDays" class="mt-4 space-y-4"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-5 soft-shadow">
+          <h3 class="text-lg font-bold mb-2">Costs</h3>
+          <div id="costBreakdown" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+          <div class="mt-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="dot bg-rose-400"></div>
+              <div>
+                <div class="text-sm opacity-80">Per person</div>
+                <div id="perPersonCost" class="font-semibold">–</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm opacity-80">Total</div>
+              <div id="totalCost" class="text-xl font-extrabold">–</div>
+            </div>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button id="shareBtn" class="btn glass rounded-xl px-4 py-2 hover:bg-white/20">Copy share link</button>
+            <button id="printBtn" class="btn glass rounded-xl px-4 py-2 hover:bg-white/20">Print</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Hyperlocal immersion -->
+      <aside class="lg:col-span-3 space-y-6">
+        <div class="glass rounded-2xl p-5 soft-shadow">
+          <h3 class="text-lg font-bold mb-2">Local immersion</h3>
+          <p class="text-white/80 text-sm mb-3">Micro-influencers near you. Add their tips into your plan.</p>
+          <div id="hostsWrap" class="space-y-3"></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="fixed inset-0 hidden items-center justify-center p-4 z-50">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="relative glass rounded-2xl max-w-2xl w-full p-6 soft-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xl font-bold">About this prototype</h3>
+        <button id="closeAbout" class="btn glass rounded-lg px-3 py-1 hover:bg-white/20">✕</button>
+      </div>
+      <p class="text-white/80 text-sm leading-relaxed">
+        This is a simpler, adaptive trip planner. Mood Catcher estimates energy and vibe from emojis and text to shape the day.
+        Hyperlocal immersion adds micro‑influencer tips into the itinerary. “Adapt” reacts to mood and rain.
+        In production, you’d connect Vertex AI (Gemini), Maps, real creator profiles, and live inventory.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Utilities
+    const byId = (id) => document.getElementById(id);
+    const fmtINR = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+    const rnd = (min,max)=> Math.floor(Math.random()*(max-min+1))+min;
+    const pick = (arr)=> arr[Math.floor(Math.random()*arr.length)];
+
+    // Data
+    const THEMES = [
+      { id:'heritage', label:'Heritage', emoji:'🏛️', type:'indoor' },
+      { id:'nature', label:'Nature', emoji:'🌿', type:'outdoor' },
+      { id:'food', label:'Food', emoji:'🍲', type:'mixed' },
+      { id:'nightlife', label:'Nightlife', emoji:'🌃', type:'mixed' },
+      { id:'adventure', label:'Adventure', emoji:'🧗', type:'outdoor' },
+      { id:'spiritual', label:'Spiritual', emoji:'🕯️', type:'indoor' }
+    ];
+
+    const DATA = {
+      goa: {
+        name: "Goa",
+        weather: "Sunny & 30°C",
+        stays: { economy:1200, comfort:2800, premium:6000 },
+        activities: {
+          heritage: [
+            { name:"Old Goa Churches", area:"Old Goa", dur:120, cost:200, type:'indoor' },
+            { name:"Aguada Fort", area:"Candolim", dur:90, cost:100, type:'outdoor' }
+          ],
+          nature: [
+            { name:"Salim Ali Sanctuary", area:"Chorao", dur:120, cost:300, type:'outdoor' },
+            { name:"Chapora Sunset", area:"Chapora", dur:90, cost:0, type:'outdoor' }
+          ],
+          food: [
+            { name:"Goan Thali Lunch", area:"Panaji", dur:60, cost:450, type:'indoor' },
+            { name:"Seafood Shack Dinner", area:"Candolim", dur:90, cost:900, type:'mixed' }
+          ],
+          nightlife: [
+            { name:"Baga Beach Clubs", area:"Baga", dur:150, cost:1200, type:'mixed' }
+          ],
+          adventure: [
+            { name:"Backwater Kayaking", area:"Chapora", dur:120, cost:900, type:'outdoor' }
+          ],
+          spiritual: [
+            { name:"Mangeshi Temple", area:"Priol", dur:60, cost:0, type:'indoor' }
+          ],
+          indoorFallback: [
+            { name:"Museum of Goa", area:"Pilerne", dur:90, cost:300, type:'indoor' },
+            { name:"Spice Plantation Tour", area:"Ponda", dur:120, cost:600, type:'indoor' }
+          ]
+        },
+        hosts: [
+          { name:"Anya • Beach Blogger", tag:"Hidden coves & eats", icon:"🏄‍♀️", tips:[
+            { title:"Secret sunrise cove", area:"Vagator", dur:60, cost:0, type:'outdoor' },
+            { title:"Best prawn curry", area:"Panaji", dur:60, cost:300, type:'indoor' }
+          ] }
+        ]
+      },
+      delhi: {
+        name:"Delhi",
+        weather:"Hazy & 27°C",
+        stays:{ economy:900, comfort:2200, premium:5000 },
+        activities:{
+          heritage:[
+            { name:"Red Fort", area:"Old Delhi", dur:120, cost:500, type:'outdoor' },
+            { name:"Qutub Minar", area:"Mehrauli", dur:90, cost:600, type:'outdoor' }
+          ],
+          nature:[ { name:"Lodhi Gardens Walk", area:"Lodhi", dur:60, cost:0, type:'outdoor' } ],
+          food:[ { name:"Old Delhi Food Crawl", area:"Chandni Chowk", dur:120, cost:500, type:'mixed' } ],
+          nightlife:[ { name:"CP Lounge Evening", area:"Connaught Place", dur:120, cost:1200, type:'indoor' } ],
+          adventure:[ { name:"AM Cycle Tour", area:"Central", dur:120, cost:700, type:'outdoor' } ],
+          spiritual:[
+            { name:"Gurudwara Bangla Sahib", area:"CP", dur:60, cost:0, type:'indoor' }
+          ],
+          indoorFallback:[
+            { name:"National Museum", area:"Janpath", dur:120, cost:50, type:'indoor' },
+            { name:"Crafts Museum", area:"Pragati Maidan", dur:90, cost:30, type:'indoor' }
+          ]
+        },
+        hosts:[
+          { name:"Ravi • Heritage Walker", tag:"Old Delhi stories", icon:"🧭", tips:[
+            { title:"Haveli tea nook", area:"Ballimaran", dur:45, cost:100, type:'indoor' },
+            { title:"Qawwali evening (Thu)", area:"Nizamuddin", dur:90, cost:0, type:'mixed' }
+          ] }
+        ]
+      },
+      jaipur: {
+        name:"Jaipur",
+        weather:"Clear & 29°C",
+        stays:{ economy:800, comfort:2000, premium:4500 },
+        activities:{
+          heritage:[
+            { name:"Amber Fort", area:"Amer", dur:120, cost:550, type:'outdoor' },
+            { name:"City Palace", area:"Old City", dur:90, cost:700, type:'indoor' }
+          ],
+          nature:[ { name:"Nahargarh Sunset", area:"Aravalli", dur:90, cost:50, type:'outdoor' } ],
+          food:[ { name:"Rajasthani Thali", area:"MI Road", dur:60, cost:500, type:'indoor' } ],
+          nightlife:[ { name:"Rooftop Lounge", area:"MI Road", dur:120, cost:900, type:'indoor' } ],
+          adventure:[ { name:"Hot Air Balloon (Seasonal)", area:"Outskirts", dur:180, cost:9000, type:'outdoor' } ],
+          spiritual:[ { name:"Govind Dev Ji Temple", area:"Old City", dur:60, cost:0, type:'indoor' } ],
+          indoorFallback:[ { name:"Albert Hall Museum", area:"Ram Niwas", dur:90, cost:300, type:'indoor' } ]
+        },
+        hosts:[
+          { name:"Meera • Craft Artist", tag:"Blue pottery & bazaars", icon:"🪬", tips:[
+            { title:"Pottery trial class", area:"Raja Park", dur:90, cost:500, type:'indoor' },
+            { title:"Gem Bazaar chai stop", area:"Johari", dur:30, cost:50, type:'indoor' }
+          ] }
+        ]
+      }
+    };
+
+    // State
+    let state = {
+      generated:false,
+      city:'goa',
+      days:4,
+      people:2,
+      budget:35000,
+      startDate:'',
+      themes:new Set(['heritage','food','nature']),
+      stay:'economy',
+      transport:'cheapest',
+      weather:{ condition:'clear', text:'Clear & 30°C' },
+      mood:{ energy:50, vibe:'balanced', focus:'explore' },
+      itinerary:[],
+      costs:{ stay:0, transport:0, activities:0, buffer:0, total:0 }
+    };
+
+    // Theme chips
+    function renderThemeChips(){
+      const wrap = byId('themesWrap'); wrap.innerHTML='';
+      THEMES.forEach(th=>{
+        const active = state.themes.has(th.id);
+        const btn = document.createElement('button');
+        btn.type='button';
+        btn.className = (active?'bg-rose-500 text-white':'glass hover:bg-white/20')+' rounded-xl px-3 py-2 text-sm';
+        btn.textContent = `${th.emoji} ${th.label}`;
+        btn.onclick = ()=>{
+          if(state.themes.has(th.id)) state.themes.delete(th.id); else state.themes.add(th.id);
+          renderThemeChips();
+        };
+        wrap.appendChild(btn);
+      });
+    }
+
+    // Mood catcher
+    const EMOJI_MAP = { energized:+20, chill:-10, romance:+5, party:+15, curious:+5, tired:-25 };
+    function analyzeMood(){
+      const txt = (byId('moodText').value||'').toLowerCase();
+      let energy = 50, vibe='balanced', focus='explore';
+      Object.entries(EMOJI_MAP).forEach(([k,val])=>{
+        // look for last clicked emoji badge marker
+      });
+      // quick keywords
+      if(/tired|lazy|chill|relax/.test(txt)) energy -= 20, vibe='chill';
+      if(/party|night|dance|club/.test(txt)) energy += 20, vibe='social', focus='nightlife';
+      if(/romance|love|date/.test(txt)) energy += 5, vibe='romantic', focus='food';
+      if(/adventure|hike|trek|kayak/.test(txt)) energy += 20, vibe='adventurous', focus='adventure';
+      if(/spiritual|calm|peace/.test(txt)) vibe='calm', focus='spiritual';
+      energy = Math.max(0, Math.min(100, energy));
+      state.mood = { energy, vibe, focus };
+      // UI
+      const pct = energy;
+      const bar = byId('energyBar');
+      bar.style.width = pct+'%';
+      bar.className = (pct<35?'bg-rose-500':pct<70?'bg-amber-400':'bg-emerald-400')+' w-['+pct+'%]';
+      byId('energyText').textContent = `${pct}%`;
+      byId('vibeText').textContent = capitalize(vibe);
+      byId('focusText').textContent = capitalize(focus);
+      byId('moodBadge').textContent = `Mood: ${pct}% ${capitalize(vibe)}`;
+      toast('Mood captured. Plans will adapt.');
+    }
+    function onEmojiClick(tag){
+      // Simple nudge to energy & vibe focus
+      const adjust = EMOJI_MAP[tag]||0;
+      state.mood.energy = Math.max(0, Math.min(100, state.mood.energy + adjust));
+      if(tag==='chill'||tag==='tired'){ state.mood.vibe='chill'; state.mood.focus='spiritual'; }
+      if(tag==='party'){ state.mood.vibe='social'; state.mood.focus='nightlife'; }
+      if(tag==='romance'){ state.mood.vibe='romantic'; state.mood.focus='food'; }
+      if(tag==='energized'){ state.mood.vibe='adventurous'; state.mood.focus='adventure'; }
+      if(tag==='curious'){ state.mood.vibe='curious'; state.mood.focus='heritage'; }
+      // reflect
+      const pct = state.mood.energy;
+      const bar = byId('energyBar');
+      bar.style.width = pct+'%';
+      bar.className = (pct<35?'bg-rose-500':pct<70?'bg-amber-400':'bg-emerald-400')+' w-['+pct+'%]';
+      byId('energyText').textContent = `${pct}%`;
+      byId('vibeText').textContent = capitalize(state.mood.vibe);
+      byId('focusText').textContent = capitalize(state.mood.focus);
+      byId('moodBadge').textContent = `Mood: ${pct}% ${capitalize(state.mood.vibe)}`;
+    }
+
+    // Generate itinerary
+    function generateItinerary(){
+      // Read inputs
+      state.city = byId('city').value;
+      state.days = Math.max(1, parseInt(byId('days').value||'1'));
+      state.people = Math.max(1, parseInt(byId('people').value||'1'));
+      state.budget = Math.max(5000, parseInt(byId('budget').value||'5000'));
+      state.startDate = byId('startDate').value||'';
+      state.stay = document.querySelector('input[name="stay"]:checked')?.value || 'economy';
+      state.transport = document.querySelector('input[name="transport"]:checked')?.value || 'cheapest';
+      if(state.themes.size===0) state.themes = new Set(['heritage','food']);
+      const city = DATA[state.city];
+
+      // Weather badge
+      state.weather.text = city.weather;
+      byId('weatherText').textContent = city.weather;
+      byId('weatherIcon').textContent = '☀️';
+
+      // Blocks per day from mood energy
+      let blocks = 3;
+      if(state.mood.energy < 35) blocks = 2;
+      if(state.mood.energy > 70) blocks = 4;
+
+      // Costs
+      const nights = Math.max(1, state.days-1);
+      const stayCost = (city.stays[state.stay]||city.stays.economy) * nights * state.people;
+      const transportBase = { cheapest:rnd(900,1800), balanced:rnd(1800,3500), fastest:rnd(3500,6500) }[state.transport] * state.people;
+      const activityBudget = Math.max(150, (state.budget - stayCost - transportBase) / (state.days * blocks));
+
+      // Build days
+      const daysArr = [];
+      let cursorDate = state.startDate ? new Date(state.startDate) : null;
+      let totalActivities=0;
+
+      for(let d=0; d<state.days; d++){
+        const blocksArr = [];
+        for(let b=0; b<blocks; b++){
+          const theme = weightedThemePick();
+          let pool = (city.activities[theme]||[]).slice();
+          // mood focus bias: include focused theme choices
+          if(theme!==state.mood.focus && Math.random()<0.25 && city.activities[state.mood.focus]){
+            pool = pool.concat(city.activities[state.mood.focus]);
+          }
+          // rain guard (later adapt may change too)
+          if(state.weather.condition==='rain') pool = pool.filter(x=> x.type!=='outdoor');
+          let pickable = pool.filter(x=> x.cost <= activityBudget*1.25);
+          const a = pick(pickable.length? pickable : pool.length? pool : (city.activities.indoorFallback||[]));
+          const when = ['Morning','Afternoon','Evening','Night'][b] || 'Anytime';
+          const block = { id:`d${d}b${b}${Math.random().toString(36).slice(2,5)}`, when, title:a.name, area:a.area, duration:a.dur, cost:Math.min(a.cost, activityBudget*1.25), type:a.type, theme };
+          totalActivities += block.cost;
+          blocksArr.push(block);
+        }
+        const dateLabel = cursorDate ? cursorDate.toLocaleDateString() : `Day ${d+1}`;
+        if(cursorDate) cursorDate.setDate(cursorDate.getDate()+1);
+        daysArr.push({ day:d+1, date:dateLabel, blocks:blocksArr });
+      }
+
+      // Costs finalize
+      const buffer = Math.round(0.08*(stayCost+transportBase+totalActivities));
+      const total = stayCost+transportBase+totalActivities+buffer;
+      state.costs = { stay:stayCost, transport:transportBase, activities:totalActivities, buffer, total };
+
+      state.itinerary = daysArr;
+      state.generated = true;
+
+      renderBadges();
+      renderItinerary();
+      renderCosts();
+      renderHosts();
+      toast('Itinerary created.');
+      saveState();
+    }
+
+    function weightedThemePick(){
+      const list = Array.from(state.themes);
+      // Bias toward mood focus
+      if(Math.random()<0.45 && state.themes.has(state.mood.focus)) return state.mood.focus;
+      return list.length ? pick(list) : pick(THEMES).id;
+    }
+
+    // Adaptation: rain & mood energy
+    function adaptItinerary(){
+      if(!state.generated) return;
+      const city = DATA[state.city];
+      let changes=0;
+
+      // Rain: replace outdoor with indoor fallback
+      if(state.weather.condition==='rain'){
+        const pool = city.activities.indoorFallback || [];
+        state.itinerary.forEach(day=>{
+          day.blocks = day.blocks.map(b=>{
+            if(b.type==='outdoor'){
+              const swap = pick(pool.length? pool : [{ name:'Local workshop', area:'Center', dur:90, cost:200, type:'indoor' }]);
+              changes++;
+              return { ...b, title:swap.name, area:swap.area, duration:swap.dur, cost:swap.cost, type:'indoor', theme:'heritage' };
+            }
+            return b;
+          });
+        });
+      }
+
+      // Mood energy adjusts pace
+      state.itinerary.forEach(day=>{
+        if(state.mood.energy < 35 && day.blocks.length>2){
+          // remove last for rest
+          day.blocks.pop(); changes++;
+        }
+        if(state.mood.energy > 70 && day.blocks.length<4){
+          // add easy add-on
+          const add = { id:`x${Math.random().toString(36).slice(2,6)}`, when:'Evening', title:'Cafe break · Local spot', area:DATA[state.city].name, duration:45, cost:150, type:'indoor', theme:'food' };
+          day.blocks.push(add); changes++;
+        }
+      });
+
+      // Recalc costs
+      let act=0; state.itinerary.forEach(d=> d.blocks.forEach(b=> act+= b.cost));
+      const delta = act - state.costs.activities;
+      state.costs.activities = act;
+      state.costs.total += delta;
+      state.costs.buffer = Math.round(0.08*(state.costs.total));
+
+      renderItinerary(); renderCosts();
+      toast(changes? `Adapted ${changes} item${changes!==1?'s':''}.` : 'No changes needed.');
+      saveState();
+    }
+
+    // UI renderers
+    function renderBadges(){
+      byId('cityBadge').textContent = DATA[state.city].name;
+      byId('daysBadge').textContent = `${state.days} day${state.days>1?'s':''}, ${state.people} person${state.people>1?'s':''}`;
+      byId('budgetBadge').textContent = `Budget ${fmtINR(state.budget)}`;
+      byId('moodBadge').textContent = `Mood: ${state.mood.energy}% ${capitalize(state.mood.vibe)}`;
+    }
+
+    function renderItinerary(){
+      const wrap = byId('itineraryDays'); const empty = byId('itineraryEmpty');
+      wrap.innerHTML=''; if(!state.generated){ empty.classList.remove('hidden'); return; } empty.classList.add('hidden');
+
+      state.itinerary.forEach(day=>{
+        const card = document.createElement('div');
+        card.className = 'glass rounded-2xl p-4';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="font-bold">Day ${day.day} · <span class="opacity-80">${day.date}</span></div>
+            <div class="text-sm opacity-80">${day.blocks.length} plans</div>
+          </div>
+        `;
+        const list = document.createElement('div'); list.className='mt-3 space-y-3';
+        day.blocks.forEach(b=>{
+          const row = document.createElement('div'); row.className='glass rounded-xl p-3 flex items-start justify-between gap-3';
+          const left = document.createElement('div'); left.className='flex-1';
+          left.innerHTML = `
+            <div class="text-xs opacity-75">${b.when} · ${b.theme}</div>
+            <div class="font-semibold leading-tight">${b.title}</div>
+            <div class="text-xs opacity-75">${b.area} · ${Math.round((b.duration||60)/60)}h</div>
+          `;
+          const right = document.createElement('div'); right.className='text-right min-w-[120px]';
+          right.innerHTML = `
+            <div class="font-semibold">${fmtINR(b.cost)}</div>
+            <div class="text-xs opacity-70">${b.type==='outdoor'?'Outdoor':(b.type==='indoor'?'Indoor':'Mixed')}</div>
+            <div class="mt-2">
+              <button class="btn glass rounded-lg px-2 py-1 text-xs hover:bg-white/20" data-swap="${b.id}">Swap</button>
+            </div>
+          `;
+          row.appendChild(left); row.appendChild(right);
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+        wrap.appendChild(card);
+      });
+
+      // swap handlers
+      document.querySelectorAll('[data-swap]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const id = btn.getAttribute('data-swap');
+          const pos = findBlock(id);
+          if(!pos) return;
+          const city = DATA[state.city];
+          const pool = (city.activities[pos.block.theme]||[]).filter(x=> x.name!==pos.block.title);
+          const alt = pool.length? pick(pool) : pick(city.activities.indoorFallback||[{ name:'Local workshop', area:'Center', dur:90, cost:200, type:'indoor' }]);
+          state.itinerary[pos.dayIdx].blocks[pos.blockIdx] = { ...pos.block, title:alt.name, area:alt.area, duration:alt.dur, cost:alt.cost, type:alt.type };
+          renderItinerary(); renderCostsRecalc(); toast('Swapped.');
+          saveState();
+        };
+      });
+    }
+
+    function findBlock(blockId){
+      for(let d=0; d<state.itinerary.length; d++){
+        const idx = state.itinerary[d].blocks.findIndex(x=> x.id===blockId);
+        if(idx>-1) return { dayIdx:d, blockIdx:idx, block: state.itinerary[d].blocks[idx] };
+      }
+      return null;
+    }
+
+    function renderCosts(){
+      const c = state.costs;
+      byId('costBreakdown').innerHTML = `
+        <div class="glass rounded-xl p-3"><div class="text-xs opacity-80">Stay</div><div class="font-semibold">${fmtINR(c.stay)}</div></div>
+        <div class="glass rounded-xl p-3"><div class="text-xs opacity-80">Transport</div><div class="font-semibold">${fmtINR(c.transport)}</div></div>
+        <div class="glass rounded-xl p-3"><div class="text-xs opacity-80">Activities</div><div class="font-semibold">${fmtINR(c.activities)}</div></div>
+        <div class="glass rounded-xl p-3"><div class="text-xs opacity-80">Buffer</div><div class="font-semibold">${fmtINR(c.buffer)}</div></div>
+      `;
+      byId('perPersonCost').textContent = fmtINR(state.costs.total / Math.max(1,state.people));
+      byId('totalCost').textContent = fmtINR(state.costs.total);
+    }
+    function renderCostsRecalc(){
+      let act=0; state.itinerary.forEach(d=> d.blocks.forEach(b=> act+= b.cost));
+      const delta = act - state.costs.activities;
+      state.costs.activities = act;
+      state.costs.total += delta;
+      state.costs.buffer = Math.round(0.08*(state.costs.total));
+      renderCosts();
+    }
+
+    // Hyperlocal hosts
+    function renderHosts(){
+      const wrap = byId('hostsWrap'); wrap.innerHTML='';
+      const hosts = (DATA[state.city].hosts||[]);
+      if(!state.generated){
+        wrap.innerHTML = `<p class="text-white/70 text-sm">Generate your plan to see local hosts and add tips.</p>`;
+        return;
+      }
+      hosts.forEach(h=>{
+        const card = document.createElement('div');
+        card.className = 'glass rounded-xl p-3';
+        const tipList = h.tips.map((t,i)=>`
+          <div class="flex items-center justify-between text-sm bg-white/10 rounded-lg p-2 mt-2">
+            <div class="flex-1">
+              <div class="font-semibold">${t.title}</div>
+              <div class="text-xs opacity-70">${t.area} · ${Math.round((t.dur||60)/60)}h · ${t.type}</div>
+            </div>
+            <div class="ml-2">
+              <select data-day-for="${h.name}-${i}" class="glass rounded-lg px-2 py-1 text-xs bg-white/10">
+                ${state.itinerary.map(d=> `<option value="${d.day}">Day ${d.day}</option>`).join('')}
+              </select>
+              <button class="btn bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg px-2 py-1 text-xs font-semibold mt-1" data-add-tip="${h.name}-${i}">Add</button>
+            </div>
+          </div>
+        `).join('');
+        card.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="text-2xl">${h.icon}</div>
+            <div class="flex-1">
+              <div class="font-semibold">${h.name}</div>
+              <div class="text-xs opacity-70">${h.tag}</div>
+              ${tipList}
+              <button class="btn glass rounded-lg px-3 py-1 text-xs hover:bg-white/20 mt-2" data-message="${h.name}">Message (Demo)</button>
+            </div>
+          </div>
+        `;
+        wrap.appendChild(card);
+      });
+
+      // Wire up add buttons
+      document.querySelectorAll('[data-add-tip]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const key = btn.getAttribute('data-add-tip');
+          const [hostName, idxStr] = key.split('-');
+          const host = (DATA[state.city].hosts||[]).find(h=> h.name===hostName);
+          if(!host) return;
+          const tip = host.tips[parseInt(idxStr,10)];
+          const daySelect = document.querySelector(`select[data-day-for="${key}"]`);
+          const dayNum = parseInt(daySelect.value,10)-1;
+          const add = { id:'tip'+Math.random().toString(36).slice(2,6), when:'Anytime', title:`With ${host.icon} ${host.name.split('•')[0].trim()}: ${tip.title}`, area:tip.area, duration:tip.dur, cost:tip.cost, type:tip.type, theme:'local' };
+          state.itinerary[dayNum].blocks.push(add);
+          renderItinerary(); renderCostsRecalc();
+          toast('Local tip added to itinerary.');
+          saveState();
+        };
+      });
+      // Message demo
+      document.querySelectorAll('[data-message]').forEach(btn=>{
+        btn.onclick = ()=> toast('Message sent (demo). Host will reply soon.');
+      });
+    }
+
+    // Weather toggle
+    function toggleWeather(){
+      if(state.weather.condition==='rain'){
+        state.weather = { condition:'clear', text: DATA[state.city].weather || 'Clear & 30°C' };
+        byId('weatherIcon').textContent = '☀️';
+      } else {
+        state.weather = { condition:'rain', text:'Rain Showers & 24°C' };
+        byId('weatherIcon').textContent = '🌧️';
+      }
+      byId('weatherText').textContent = state.weather.text;
+    }
+
+    // Share & print
+    function shareLink(){
+      const minimal = {
+        city: state.city, days: state.days, people: state.people, budget: state.budget, startDate: state.startDate,
+        themes: Array.from(state.themes), stay: state.stay, transport: state.transport,
+        mood: state.mood, itinerary: state.itinerary, costs: state.costs
+      };
+      const payload = btoa(unescape(encodeURIComponent(JSON.stringify(minimal))));
+      return (location.origin + location.pathname + '#plan=') + payload;
+    }
+
+    // Small helpers
+    function capitalize(s){ return (s||'').slice(0,1).toUpperCase() + (s||'').slice(1); }
+    let toastTimer=null;
+    function toast(msg){
+      let t = document.getElementById('toast');
+      if(!t){ t = document.createElement('div'); t.id='toast'; t.className='fixed bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl soft-shadow z-50'; document.body.appendChild(t); }
+      t.textContent = msg; t.style.opacity='1'; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.style.opacity='0'; }, 2200);
+    }
+    function saveState(){ try{ localStorage.setItem('yatra_lite_demo', JSON.stringify({ ...state, themes:Array.from(state.themes) })); }catch(e){} }
+    function loadState(){
+      try{
+        const s = JSON.parse(localStorage.getItem('yatra_lite_demo')||'null'); if(!s) return;
+        state = { ...state, ...s, themes:new Set(s.themes||Array.from(state.themes)) };
+        // form
+        byId('city').value = state.city;
+        byId('days').value = state.days; byId('people').value = state.people; byId('budget').value = state.budget;
+        byId('startDate').value = state.startDate||'';
+        document.querySelector(`input[name="stay"][value="${state.stay}"]`)?.click();
+        document.querySelector(`input[name="transport"][value="${state.transport}"]`)?.click();
+        renderThemeChips();
+        // mood ui
+        onEmojiClick('curious'); // initialize mood bar visuals
+        if(state.generated){
+          renderBadges(); renderItinerary(); renderCosts(); renderHosts();
+        }
+      }catch(e){}
+    }
+
+    // Events
+    window.addEventListener('DOMContentLoaded', ()=>{
+      renderThemeChips(); loadState();
+
+      // Emojis
+      byId('emojiBar').querySelectorAll('button').forEach(b=>{
+        b.onclick = ()=> onEmojiClick(b.getAttribute('data-mood'));
+      });
+      byId('catchMoodBtn').onclick = (e)=>{ e.preventDefault(); analyzeMood(); };
+
+      // Planner
+      byId('themesClear').onclick = ()=>{ state.themes.clear(); renderThemeChips(); };
+      byId('generateBtn').onclick = (e)=>{ e.preventDefault(); generateItinerary(); };
+      byId('resetBtn').onclick = ()=>{
+        state = { ...state,
+          generated:false, city:'goa', days:4, people:2, budget:35000, startDate:'',
+          themes:new Set(['heritage','food','nature']), stay:'economy', transport:'cheapest',
+          weather:{ condition:'clear', text:'Clear & 30°C' }, mood:{ energy:50, vibe:'balanced', focus:'explore' },
+          itinerary:[], costs:{ stay:0, transport:0, activities:0, buffer:0, total:0 }
+        };
+        byId('plannerForm').reset();
+        byId('city').value='goa'; byId('days').value=4; byId('people').value=2; byId('budget').value=35000; byId('startDate').value='';
+        renderThemeChips();
+        byId('itineraryDays').innerHTML=''; byId('itineraryEmpty').classList.remove('hidden');
+        byId('costBreakdown').innerHTML=''; byId('perPersonCost').textContent='–'; byId('totalCost').textContent='–';
+        byId('hostsWrap').innerHTML='<p class="text-white/70 text-sm">Generate your plan to see local hosts and add tips.</p>';
+        onEmojiClick('curious'); renderBadges();
+        saveState();
+      };
+
+      // Live
+      byId('toggleWeatherBtn').onclick = ()=> toggleWeather();
+      byId('adaptBtn').onclick = ()=> adaptItinerary();
+
+      // Creative Mode toggle
+      const creativeToggle = byId('creativeToggle');
+      const creativeBg = byId('creativeBg');
+      if(creativeToggle){
+        creativeToggle.addEventListener('change', ()=>{
+          creativeBg.style.opacity = creativeToggle.checked ? '1' : '0';
+          toast(creativeToggle.checked? 'Creative Mode on ✨' : 'Creative Mode off');
+        });
+      }
+
+      // Share/print
+      byId('shareBtn').onclick = ()=> { navigator.clipboard.writeText(shareLink()).then(()=> toast('Share link copied!')); };
+      byId('printBtn').onclick = ()=> window.print();
+
+      // About modal
+      const about = byId('aboutModal');
+      byId('aboutBtn').onclick = ()=> { about.classList.remove('hidden'); about.classList.add('flex'); };
+      byId('closeAbout').onclick = ()=> { about.classList.add('hidden'); about.classList.remove('flex'); };
+    });
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9821e08ca102ca5b',t:'MTc1ODM3NzEyMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
